@@ -1,106 +1,77 @@
-# node-postgres
+pg-connection-string
+====================
 
-![Build Status](https://github.com/brianc/node-postgres/actions/workflows/ci.yml/badge.svg)
-<span class="badge-npmversion"><a href="https://npmjs.org/package/pg" title="View this project on NPM"><img src="https://img.shields.io/npm/v/pg.svg" alt="NPM version" /></a></span>
-<span class="badge-npmdownloads"><a href="https://npmjs.org/package/pg" title="View this project on NPM"><img src="https://img.shields.io/npm/dm/pg.svg" alt="NPM downloads" /></a></span>
+[![NPM](https://nodei.co/npm/pg-connection-string.png?compact=true)](https://nodei.co/npm/pg-connection-string/)
 
-Non-blocking PostgreSQL client for Node.js. Pure JavaScript and optional native libpq bindings.
+[![Build Status](https://travis-ci.org/iceddev/pg-connection-string.svg?branch=master)](https://travis-ci.org/iceddev/pg-connection-string)
+[![Coverage Status](https://coveralls.io/repos/github/iceddev/pg-connection-string/badge.svg?branch=master)](https://coveralls.io/github/iceddev/pg-connection-string?branch=master)
 
-## Monorepo
+Functions for dealing with a PostgresSQL connection string
 
-This repo is a monorepo which contains the core [pg](https://github.com/brianc/node-postgres/tree/master/packages/pg) module as well as a handful of related modules.
+`parse` method taken from [node-postgres](https://github.com/brianc/node-postgres.git)
+Copyright (c) 2010-2014 Brian Carlson (brian.m.carlson@gmail.com)
+MIT License
 
-- [pg](https://github.com/brianc/node-postgres/tree/master/packages/pg)
-- [pg-pool](https://github.com/brianc/node-postgres/tree/master/packages/pg-pool)
-- [pg-cursor](https://github.com/brianc/node-postgres/tree/master/packages/pg-cursor)
-- [pg-query-stream](https://github.com/brianc/node-postgres/tree/master/packages/pg-query-stream)
-- [pg-connection-string](https://github.com/brianc/node-postgres/tree/master/packages/pg-connection-string)
-- [pg-protocol](https://github.com/brianc/node-postgres/tree/master/packages/pg-protocol)
+## Usage
 
-## Documentation
+```js
+var parse = require('pg-connection-string').parse;
 
-Each package in this repo should have its own readme more focused on how to develop/contribute. For overall documentation on the project and the related modules managed by this repo please see:
+var config = parse('postgres://someuser:somepassword@somehost:381/somedatabase')
+```
 
-### :star: [Documentation](https://node-postgres.com) :star:
+The resulting config contains a subset of the following properties:
 
-The source repo for the documentation is available for contribution [here](https://github.com/brianc/node-postgres/tree/master/docs).
+* `user` - User with which to authenticate to the server
+* `password` - Corresponding password
+* `host` - Postgres server hostname or, for UNIX domain sockets, the socket filename
+* `port` - port on which to connect
+* `database` - Database name within the server
+* `client_encoding` - string encoding the client will use
+* `ssl`, either a boolean or an object with properties
+  * `rejectUnauthorized`
+  * `cert`
+  * `key`
+  * `ca`
+* any other query parameters (for example, `application_name`) are preserved intact.
 
-### Features
+## Connection Strings
 
-- Pure JavaScript client and native libpq bindings share _the same API_
-- Connection pooling
-- Extensible JS ↔ PostgreSQL data-type coercion
-- Supported PostgreSQL features
-  - Parameterized queries
-  - Named statements with query plan caching
-  - Async notifications with `LISTEN/NOTIFY`
-  - Bulk import & export with `COPY TO/COPY FROM`
+The short summary of acceptable URLs is:
 
-### Extras
+ * `socket:<path>?<query>` - UNIX domain socket
+ * `postgres://<user>:<password>@<host>:<port>/<database>?<query>` - TCP connection
 
-node-postgres is by design pretty light on abstractions. These are some handy modules we've been using over the years to complete the picture.
-The entire list can be found on our [wiki](https://github.com/brianc/node-postgres/wiki/Extras).
+But see below for more details.
 
-## Support
+### UNIX Domain Sockets
 
-node-postgres is free software. If you encounter a bug with the library please open an issue on the [GitHub repo](https://github.com/brianc/node-postgres). If you have questions unanswered by the documentation please open an issue pointing out how the documentation was unclear & I will do my best to make it better!
+When user and password are not given, the socket path follows `socket:`, as in `socket:/var/run/pgsql`.
+This form can be shortened to just a path: `/var/run/pgsql`.
 
-When you open an issue please provide:
+When user and password are given, they are included in the typical URL positions, with an empty `host`, as in `socket://user:pass@/var/run/pgsql`.
 
-- version of Node
-- version of Postgres
-- smallest possible snippet of code to reproduce the problem
+Query parameters follow a `?` character, including the following special query parameters:
 
-You can also follow me [@briancarlson](https://twitter.com/briancarlson) if that's your thing. I try to always announce noteworthy changes & developments with node-postgres on Twitter.
+ * `db=<database>` - sets the database name (urlencoded)
+ * `encoding=<encoding>` - sets the `client_encoding` property
 
-## Sponsorship :two_hearts:
+### TCP Connections
 
-node-postgres's continued development has been made possible in part by generous financial support from [the community](https://github.com/brianc/node-postgres/blob/master/SPONSORS.md).
+TCP connections to the Postgres server are indicated with `pg:` or `postgres:` schemes (in fact, any scheme but `socket:` is accepted).
+If username and password are included, they should be urlencoded.
+The database name, however, should *not* be urlencoded.
 
-If you or your company are benefiting from node-postgres and would like to help keep the project financially sustainable [please consider supporting](https://github.com/sponsors/brianc) its development.
+Query parameters follow a `?` character, including the following special query parameters:
+ * `host=<host>` - sets `host` property, overriding the URL's host
+ * `encoding=<encoding>` - sets the `client_encoding` property
+ * `ssl=1`, `ssl=true`, `ssl=0`, `ssl=false` - sets `ssl` to true or false, accordingly
+ * `sslmode=<sslmode>`
+   * `sslmode=disable` - sets `ssl` to false
+   * `sslmode=no-verify` - sets `ssl` to `{ rejectUnauthorized: false }`
+   * `sslmode=prefer`, `sslmode=require`, `sslmode=verify-ca`, `sslmode=verify-full` - sets `ssl` to true
+ * `sslcert=<filename>` - reads data from the given file and includes the result as `ssl.cert`
+ * `sslkey=<filename>` - reads data from the given file and includes the result as `ssl.key`
+ * `sslrootcert=<filename>` - reads data from the given file and includes the result as `ssl.ca`
 
-## Contributing
-
-**:heart: contributions!**
-
-I will **happily** accept your pull request if it:
-
-- **has tests**
-- looks reasonable
-- does not break backwards compatibility
-
-If your change involves breaking backwards compatibility please please point that out in the pull request & we can discuss & plan when and how to release it and what type of documentation or communication it will require.
-
-### Setting up for local development
-
-1. Clone the repo
-2. From your workspace root run `yarn` and then `yarn lerna bootstrap`
-3. Ensure you have a PostgreSQL instance running with SSL enabled and an empty database for tests
-4. Ensure you have the proper environment variables configured for connecting to the instance
-5. Run `yarn test` to run all the tests
-
-## Troubleshooting and FAQ
-
-The causes and solutions to common errors can be found among the [Frequently Asked Questions (FAQ)](https://github.com/brianc/node-postgres/wiki/FAQ)
-
-## License
-
-Copyright (c) 2010-2020 Brian Carlson (brian.m.carlson@gmail.com)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
+A bare relative URL, such as `salesdata`, will indicate a database name while leaving other properties empty.
