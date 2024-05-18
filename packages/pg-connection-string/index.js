@@ -73,7 +73,7 @@ function parse(str) {
   }
 
   // Only try to load fs if we expect to read from the disk
-  const fs = config.sslcert || config.sslkey || config.sslrootcert ? require('fs') : null
+  const fs = config.sslcert || config.sslkey || config.sslrootcert ? require('node:fs') : null
 
   if (config.sslcert) {
     config.ssl.cert = fs.readFileSync(config.sslcert).toString()
